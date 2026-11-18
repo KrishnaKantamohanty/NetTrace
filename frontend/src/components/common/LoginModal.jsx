@@ -135,9 +135,13 @@ export default function LoginModal({ isOpen, onClose }) {
           </button>
         </form>
 
-        <div className="mt-5 pt-4 border-t border-slate-800 text-center text-[10px] text-slate-600 leading-relaxed">
-          Unauthorized access is a punishable offence under Section 66 IT Act 2000.<br />
-          All sessions are cryptographically logged and audited.
+        <div className="mt-5 pt-4 border-t border-slate-800 text-center text-[10px] text-slate-500 leading-relaxed space-y-1.5">
+          <p className="text-cyan-400/90 font-medium">
+            New officer? Contact your Cell Admin or Lead Investigator to enroll your Badge ID.
+          </p>
+          <p className="text-slate-600 text-[9px]">
+            Unauthorized access is a punishable offence under Section 66 IT Act 2000. All sessions are cryptographically logged.
+          </p>
         </div>
       </div>
     </div>

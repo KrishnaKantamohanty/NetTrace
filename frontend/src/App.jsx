@@ -11,6 +11,7 @@ import SpeechOCRView from './views/SpeechOCRView';
 import PartyAnalysisView from './views/PartyAnalysisView';
 import DurationAnalysisView from './views/DurationAnalysisView';
 import DeepInvestigationView from './views/DeepInvestigationView';
+import OfficerManagementView from './views/OfficerManagementView';
 import UploadModal from './views/UploadModal';
 import { useCDRStore } from './store/useCDRStore';
 import { cdrService } from './services/cdrService';
@@ -70,6 +71,7 @@ export default function App() {
           {activeView === 'forensics' && hasUploadedData && <ForensicsReportView />}
           {activeView === 'ipdr' && hasUploadedData && <IPDRView />}
           {activeView === 'speech' && hasUploadedData && <SpeechOCRView />}
+          {activeView === 'officers' && hasUploadedData && <OfficerManagementView />}
         </main>
       </div>
 

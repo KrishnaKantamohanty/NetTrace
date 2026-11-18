@@ -109,7 +109,26 @@ def register(
 @router.get("/users", response_model=List[UserResponse])
 def list_users(
     db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN", "LEAD_INVESTIGATOR"]))
+):
+    """Lists all registered system users. Restricted to ADMIN and LEAD_INVESTIGATOR roles."""
+    return db.query(User).all()
+
+@router.patch("/users/{user_id}/status", response_model=UserResponse)
+def toggle_user_status(
+    user_id: int,
+    db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(["ADMIN"]))
 ):
-    """Lists all registered system users. Restricted to ADMIN role."""
-    return db.query(User).all()
+    """Deactivates or activates an officer account. Restricted to ADMIN."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Officer account not found")
+    if target_user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own administrative account")
+    
+    target_user.is_active = 0 if target_user.is_active == 1 else 1
+    db.commit()
+    db.refresh(target_user)
+    logger.info(f"Officer {target_user.username} status toggled to {target_user.is_active} by {current_user.username}")
+    return target_user

@@ -10,6 +10,7 @@ import {
   ArrowLeftRight,
   Timer,
   ChevronRight,
+  Users,
 } from 'lucide-react';
 import { useCDRStore } from '../../store/useCDRStore';
 
@@ -34,6 +35,7 @@ export default function Sidebar() {
         { id: 'ipdr', label: 'IPDR & Telemetry', icon: Wifi, badge: 'New' },
         { id: 'speech', label: 'Speech & OCR', icon: Mic, badge: 'AI' },
         { id: 'forensics', label: 'Evidence Report', icon: FileCheck2 },
+        { id: 'officers', label: 'Officer Management', icon: Users, badge: 'Access' },
       ],
     },
   ];
