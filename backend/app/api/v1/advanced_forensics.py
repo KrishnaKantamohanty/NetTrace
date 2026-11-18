@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException, UploadFile, File, 
 from sqlalchemy.orm import Session
 from typing import Optional, List
 from app.db.postgres import get_db
+from app.models.postgres_models import User
+from app.core.security import get_current_user
 from app.services.graph.relay_chain import RelayChainService
 from app.services.analytics.ipdr_analytics import IPDRAnalyticsService
 from app.services.speech.whisper_engine import SpeechForensicsService
@@ -17,20 +19,21 @@ router = APIRouter(prefix="/forensics", tags=["Advanced Cyber Forensics & Intell
 def get_relay_chains(
     case_id: str,
     gap_minutes: int = Query(15, ge=1, le=120),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Detects sequential relay calls (A -> B -> C) within a short time delta."""
     return RelayChainService.detect_relay_chains(db, case_id=case_id, max_gap_minutes=gap_minutes)
 
 # 2. IPDR & Telemetry Analytics
 @router.get("/ipdr/{case_id}")
-def get_ipdr_analytics(case_id: str, db: Session = Depends(get_db)):
+def get_ipdr_analytics(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """IPDR: WhatsApp/VoIP/Telegram sessions, data consumption spikes, and hardware telemetry logs."""
     return IPDRAnalyticsService.get_ipdr_summary(db, case_id=case_id)
 
 # 3. Speech Forensics & Whisper AI Intercepts
 @router.get("/speech/{case_id}")
-def get_speech_intercepts(case_id: str, db: Session = Depends(get_db)):
+def get_speech_intercepts(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Multi-lingual Whisper/Bhashini audio transcripts with crime slang keyword spotting."""
     return SpeechForensicsService.get_intercepts_for_case(db, case_id=case_id)
 
@@ -42,7 +45,8 @@ def analyze_speech_intercept(
     filename: str = Form("intercept_call.wav"),
     transcript: Optional[str] = Form(None),
     language: str = Form("Hindi"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Submits tapped call audio for AI transcription & keyword spotting."""
     res = SpeechForensicsService.process_new_audio(
@@ -63,7 +67,7 @@ def analyze_speech_intercept(
 
 # 4. Multi-Script OCR Engine
 @router.get("/ocr/{case_id}")
-def get_ocr_records(case_id: str, db: Session = Depends(get_db)):
+def get_ocr_records(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Scanned police FIRs, call slips, and SIM application forms extracted to text."""
     return OCREngineService.get_ocr_records(db, case_id=case_id)
 
@@ -73,7 +77,8 @@ def scan_document_ocr(
     filename: str = Form("scanned_fir.jpg"),
     doc_type: str = Form("FIR"),
     raw_text: Optional[str] = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Performs multi-script OCR on police document and extracts entities."""
     res = OCREngineService.process_scanned_document(
@@ -91,28 +96,28 @@ def scan_document_ocr(
 
 # 5. OSINT & Behavioral Profiling
 @router.get("/osint/profile/{phone}")
-def get_osint_profile(phone: str, db: Session = Depends(get_db)):
+def get_osint_profile(phone: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Enriches suspect phone with Truecaller name, UPI handles, WhatsApp/Telegram status, and ML Risk Score."""
     return OSINTEnrichmentService.get_or_create_profile(db, phone_number=phone)
 
 @router.get("/osint/cross-case/{case_id}/{phone}")
-def get_cross_case_correlations(case_id: str, phone: str, db: Session = Depends(get_db)):
+def get_cross_case_correlations(case_id: str, phone: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Cross-case correlation: checks if suspect appeared in historical cases."""
     return OSINTEnrichmentService.find_cross_case_correlations(db, target_phone=phone, current_case_id=case_id)
 
 # 6. Geofencing & 4D Spatiotemporal Forensics
 @router.get("/geofence/rules/{case_id}")
-def get_geofence_rules(case_id: str, db: Session = Depends(get_db)):
+def get_geofence_rules(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return GeofenceService.get_rules_for_case(db, case_id=case_id)
 
 @router.get("/geofence/breaches/{case_id}")
-def get_geofence_breaches(case_id: str, db: Session = Depends(get_db)):
+def get_geofence_breaches(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Scans suspect locations against geofence perimeters and returns breach alerts."""
     return GeofenceService.check_geofence_breaches(db, case_id=case_id)
 
 # 7. SHA-256 Chain of Custody Audit Ledger (§ 65B Indian Evidence Act)
 @router.get("/custody-log/{case_id}")
-def get_chain_of_custody(case_id: str, db: Session = Depends(get_db)):
+def get_chain_of_custody(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     return ChainOfCustodyService.get_audit_trail(db, case_id=case_id)
 
 @router.get("/section-65b-pdf/{case_id}")
@@ -121,7 +126,8 @@ def download_section_65b_pdf(
     user_id: str = Query("IO-CYBER-9042", description="Investigator ID / Badge number"),
     officer_name: str = Query("Inspector R. K. Sharma", description="Certifying officer name"),
     police_station: str = Query("Special Cyber Crime Unit", description="Police station jurisdiction"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Generates official Section 65B Evidence Act certificate PDF."""
     from fastapi.responses import Response

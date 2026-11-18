@@ -9,6 +9,11 @@ export const useCDRStore = create((set) => ({
   selectedSuspect: null,
   toastMessage: null,
 
+  // Authentication state
+  currentUser: JSON.parse(localStorage.getItem('nettrace_user') || 'null'),
+  isAuthenticated: !!localStorage.getItem('nettrace_token'),
+  showLoginModal: false,
+
   setHasUploadedData: (val) => {
     localStorage.setItem('nettrace_has_uploaded', val ? 'true' : 'false');
     set({ hasUploadedData: val });
@@ -28,6 +33,22 @@ export const useCDRStore = create((set) => ({
   resetWorkspace: () => {
     localStorage.removeItem('nettrace_has_uploaded');
     set({ hasUploadedData: false, activeView: 'dashboard', selectedSuspect: null });
+  },
+
+  // Auth actions
+  setCurrentUser: (user) => {
+    if (user) {
+      localStorage.setItem('nettrace_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('nettrace_user');
+    }
+    set({ currentUser: user, isAuthenticated: !!user });
+  },
+  setShowLoginModal: (show) => set({ showLoginModal: show }),
+  logout: () => {
+    localStorage.removeItem('nettrace_token');
+    localStorage.removeItem('nettrace_user');
+    set({ currentUser: null, isAuthenticated: false, showLoginModal: true });
   },
 }));
 

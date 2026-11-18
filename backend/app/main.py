@@ -3,7 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
-from app.db.postgres import init_db
+from app.db.postgres import init_db, check_db_health
+from app.db.neo4j import neo4j_client
 from app.api.v1.router import api_router
 
 # Configure logging
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     init_db()
     yield
     logger.info("Shutting down NetTrace...")
+    neo4j_client.close()
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -49,9 +51,27 @@ def root():
         "docs": f"{settings.API_V1_STR}/docs"
     }
 
-@app.get("/health")
+@app.get("/health", tags=["System Health"])
 def health_check():
-    return {"status": "HEALTHY", "engine": "FastAPI", "graph_engine": "NetworkX + Neo4j ready"}
+    """
+    Active health check verifying database and graph service dependencies.
+    """
+    db_health = check_db_health()
+    neo4j_status = "CONNECTED" if neo4j_client.is_connected else ("DISABLED" if not settings.USE_NEO4J else "DISCONNECTED")
+    
+    is_healthy = db_health["connected"]
+    overall_status = "HEALTHY" if is_healthy else "DEGRADED"
+
+    return {
+        "status": overall_status,
+        "database": db_health,
+        "graph_engine": {
+            "mode": "NetworkX + Neo4j" if neo4j_client.is_connected else "NetworkX (In-Memory)",
+            "neo4j_status": neo4j_status
+        },
+        "engine": "FastAPI",
+        "version": "2.4.0"
+    }
 
 if __name__ == "__main__":
     import uvicorn

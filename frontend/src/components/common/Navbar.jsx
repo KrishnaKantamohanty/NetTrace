@@ -1,12 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Upload, Play, FileText, Database, Radio, ChevronDown, Check, PlusCircle, RefreshCw } from 'lucide-react';
+import {
+  Shield,
+  Upload,
+  Play,
+  FileText,
+  Database,
+  Radio,
+  ChevronDown,
+  Check,
+  PlusCircle,
+  RefreshCw,
+  FolderPlus,
+  Sparkles,
+  LogIn,
+  LogOut,
+  User
+} from 'lucide-react';
 import { useCDRStore } from '../../store/useCDRStore';
 import { cdrService } from '../../services/cdrService';
+import FreshStartModal from './FreshStartModal';
+import LoginModal from './LoginModal';
 
 export default function Navbar() {
-  const { cases, setCases, selectedCaseId, setSelectedCaseId, setHasUploadedData, resetWorkspace, setIsUploadOpen, showToast } = useCDRStore();
+  const {
+    cases, setCases, selectedCaseId, setSelectedCaseId,
+    setHasUploadedData, resetWorkspace, setIsUploadOpen, showToast,
+    currentUser, isAuthenticated, logout, setShowLoginModal, showLoginModal
+  } = useCDRStore();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [seeding, setSeeding] = useState(false);
+  const [isFreshStartOpen, setIsFreshStartOpen] = useState(false);
 
   useEffect(() => {
     async function loadCases() {
@@ -42,6 +65,14 @@ export default function Navbar() {
   const handleExportPDF = () => {
     if (!selectedCaseId) return;
     window.open(cdrService.exportPdfUrl(selectedCaseId), '_blank');
+  };
+
+  const roleBadgeStyle = (role) => {
+    switch (role) {
+      case 'ADMIN': return 'text-red-400';
+      case 'LEAD_INVESTIGATOR': return 'text-purple-400';
+      default: return 'text-cyan-400';
+    }
   };
 
   return (
@@ -119,6 +150,15 @@ export default function Navbar() {
       {/* Action Buttons */}
       <div className="flex items-center gap-3">
         <button
+          onClick={() => setIsFreshStartOpen(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 border border-purple-500/40 text-xs font-mono font-medium transition shadow-sm"
+          title="Fresh Start: Start New Investigation, Clear Case, or Admin Reset"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+          <span>Fresh Start</span>
+        </button>
+
+        <button
           onClick={handleSeedDemo}
           disabled={seeding}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/50 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-900/60 text-xs font-mono font-medium transition shadow-sm"
@@ -159,17 +199,40 @@ export default function Navbar() {
 
         <div className="h-6 w-px bg-slate-800 mx-1"></div>
 
-        {/* Officer Badge */}
-        <div className="flex items-center gap-2 pl-1">
-          <div className="w-7 h-7 rounded-full bg-cyan-950 border border-cyan-500/40 flex items-center justify-center">
-            <Shield className="w-3.5 h-3.5 text-cyan-400" />
+        {/* Officer Badge / Auth Controls */}
+        {isAuthenticated && currentUser ? (
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-cyan-950 border border-cyan-500/40 flex items-center justify-center">
+              <Shield className="w-3.5 h-3.5 text-cyan-400" />
+            </div>
+            <div className="hidden md:block text-left">
+              <div className="text-xs font-mono font-semibold text-slate-200">{currentUser.badge_number || currentUser.username}</div>
+              <div className={`text-[10px] font-mono ${roleBadgeStyle(currentUser.role)}`}>{currentUser.role}</div>
+            </div>
+            <button
+              onClick={logout}
+              title="Logout"
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-800 hover:bg-red-950/60 hover:text-red-400 text-slate-400 border border-slate-700 hover:border-red-500/40 text-xs font-mono transition"
+            >
+              <LogOut className="w-3 h-3" />
+              <span className="hidden md:inline">Logout</span>
+            </button>
           </div>
-          <div className="hidden md:block text-left">
-            <div className="text-xs font-mono font-semibold text-slate-200">CC-9042</div>
-            <div className="text-[10px] text-cyan-400 font-mono">CYBER SPECIAL CELL</div>
-          </div>
-        </div>
+        ) : (
+          <button
+            onClick={() => setShowLoginModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 text-cyan-300 border border-cyan-500/40 text-xs font-mono font-medium transition"
+          >
+            <LogIn className="w-3.5 h-3.5" />
+            Login
+          </button>
+        )}
       </div>
+
+      {/* Fresh Start Modal */}
+      <FreshStartModal isOpen={isFreshStartOpen} onClose={() => setIsFreshStartOpen(false)} />
+      {/* Login Modal */}
+      <LoginModal isOpen={showLoginModal} onClose={() => setShowLoginModal(false)} />
     </header>
   );
 }

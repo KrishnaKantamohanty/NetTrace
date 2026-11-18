@@ -24,21 +24,31 @@ export default function ForensicsReportView() {
   const [custodyLog, setCustodyLog] = useState([]);
   const [relayChains, setRelayChains] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     async function loadSummary() {
-      if (!selectedCaseId) return;
+      if (!selectedCaseId) {
+        setLoading(false);
+        return;
+      }
       try {
         setLoading(true);
+        setError(null);
         const [data, custodyRes, relayRes] = await Promise.allSettled([
           cdrService.getCaseSummary(selectedCaseId),
           forensicsService.getChainOfCustody(selectedCaseId),
           forensicsService.getRelayChains(selectedCaseId),
         ]);
-        if (data.status === 'fulfilled') setSummary(data.value);
+        if (data.status === 'fulfilled') {
+          setSummary(data.value);
+        } else {
+          setError('Failed to load primary case summary.');
+        }
         if (custodyRes.status === 'fulfilled') setCustodyLog(custodyRes.value?.audit_trail || custodyRes.value || []);
         if (relayRes.status === 'fulfilled') setRelayChains(relayRes.value?.chains || relayRes.value || []);
       } catch (err) {
+        setError(err.message || 'Error loading forensic report.');
         showToast('Error loading report summary: ' + err.message);
       } finally {
         setLoading(false);
@@ -49,6 +59,26 @@ export default function ForensicsReportView() {
 
   if (loading) {
     return <Loader text="Generating Court-Ready Evidentiary Report..." />;
+  }
+
+  if (!selectedCaseId) {
+    return (
+      <div className="p-8 text-center text-slate-400 font-mono bg-[#090d16] border border-cyan-500/20 rounded-2xl max-w-2xl mx-auto my-12">
+        <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-slate-200">No Active Case Selected</h3>
+        <p className="text-xs text-slate-400 mt-1">Please select or upload a CDR investigation case to generate certified reports.</p>
+      </div>
+    );
+  }
+
+  if (error && !summary) {
+    return (
+      <div className="p-8 text-center text-red-400 font-mono bg-red-950/20 border border-red-500/30 rounded-2xl max-w-2xl mx-auto my-12">
+        <AlertTriangle className="w-10 h-10 text-red-400 mx-auto mb-3" />
+        <h3 className="text-base font-bold text-red-200">Forensics Report Error</h3>
+        <p className="text-xs text-red-300 mt-1">{error}</p>
+      </div>
+    );
   }
 
   const handleDownloadPDF = () => {

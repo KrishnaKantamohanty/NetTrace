@@ -1,59 +1,88 @@
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from typing import List, Optional
 from app.db.postgres import get_db
 from app.models.postgres_models import User
 from app.models.pydantic_models import UserLogin, UserCreate, Token, UserResponse
-from app.core.security import verify_password, get_password_hash, create_access_token
+from app.core.security import (
+    verify_password,
+    get_password_hash,
+    create_access_token,
+    get_current_user,
+    require_roles
+)
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger("nettrace.auth")
+
+router = APIRouter(prefix="/auth", tags=["Authentication & Access Control"])
 
 @router.post("/login", response_model=Token)
 def login(creds: UserLogin, db: Session = Depends(get_db)):
-    # Demo/standard investigator fallback
-    if creds.username == "investigator" and creds.password == "forensics2026":
-        token = create_access_token(subject="investigator")
-        return {
-            "access_token": token,
-            "token_type": "bearer",
-            "user": {
-                "id": 1,
-                "username": "investigator",
-                "email": "investigator@cybercell.gov.in",
-                "badge_number": "CC-9042",
-                "role": "LEAD_INVESTIGATOR"
-            }
-        }
-
+    """
+    Authenticates investigator via username and password against database.
+    Strictly verifies Argon2id / bcrypt cryptographic password hashes without hardcoded bypasses.
+    """
     user = db.query(User).filter(User.username == creds.username).first()
     if not user or not verify_password(creds.password, user.hashed_password):
-        # Allow default fallback demo login for easy testing
-        if creds.username == "admin" and creds.password == "admin123":
-            token = create_access_token(subject="admin")
-            return {
-                "access_token": token,
-                "token_type": "bearer",
-                "user": {
-                    "id": 1,
-                    "username": "admin",
-                    "email": "admin@cyberforensics.local",
-                    "badge_number": "ADM-001",
-                    "role": "ADMIN"
-                }
-            }
+        logger.warning(f"Failed authentication attempt for username: {creds.username}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password"
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"}
         )
 
-    token = create_access_token(subject=user.username)
+    # Transparent SHA-256 → Argon2id hash migration on successful login
+    if not user.hashed_password.startswith("$argon2"):
+        try:
+            user.hashed_password = get_password_hash(creds.password)
+            db.commit()
+            logger.info(f"Password hash migrated to Argon2id for user: {user.username}")
+        except Exception as mig_err:
+            logger.warning(f"Failed to migrate password hash for {user.username}: {mig_err}")
+            db.rollback()
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User account is inactive. Please contact an administrator."
+        )
+
+    token = create_access_token(subject=user.username, role=user.role)
+    logger.info(f"Successful login for investigator: {user.username} (Role: {user.role})")
     return {
         "access_token": token,
         "token_type": "bearer",
-        "user": user
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "badge_number": user.badge_number,
+            "role": user.role
+        }
     }
 
+@router.post("/token", response_model=Token, include_in_schema=False)
+def login_for_access_token(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db)
+):
+    """OAuth2 password form login endpoint for Swagger UI interactive authentication."""
+    return login(UserLogin(username=form_data.username, password=form_data.password), db=db)
+
+@router.get("/me", response_model=UserResponse)
+def get_current_user_profile(current_user: User = Depends(get_current_user)):
+    """Returns profile and authorized roles of the currently authenticated officer."""
+    return current_user
+
 @router.post("/register", response_model=UserResponse)
-def register(user_in: UserCreate, db: Session = Depends(get_db)):
+def register(
+    user_in: UserCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN", "LEAD_INVESTIGATOR"]))
+):
+    """Registers a new officer account. Restricted to ADMIN and LEAD_INVESTIGATOR roles."""
     existing = db.query(User).filter(
         (User.username == user_in.username) | (User.email == user_in.email)
     ).first()
@@ -62,14 +91,25 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Username or email already registered"
         )
+    
     user = User(
         username=user_in.username,
         email=user_in.email,
         hashed_password=get_password_hash(user_in.password),
         badge_number=user_in.badge_number,
-        role=user_in.role or "INVESTIGATOR"
+        role=user_in.role or "INVESTIGATOR",
+        is_active=1
     )
     db.add(user)
     db.commit()
     db.refresh(user)
+    logger.info(f"New user registered: {user.username} (Created by: {current_user.username})")
     return user
+
+@router.get("/users", response_model=List[UserResponse])
+def list_users(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(["ADMIN"]))
+):
+    """Lists all registered system users. Restricted to ADMIN role."""
+    return db.query(User).all()

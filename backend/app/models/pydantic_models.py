@@ -86,6 +86,7 @@ class IngestionResult(BaseModel):
     operator_detected: str
     case_id: str
     errors: List[str] = []
+    graph_sync_status: Optional[str] = None
 
 # Graph Schemas
 class GraphNode(BaseModel):

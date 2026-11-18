@@ -1,7 +1,7 @@
 import api from './api';
 
 export const cdrService = {
-  // Cases
+  // Cases & Case Management (Feature 1)
   getCases: async () => {
     const res = await api.get('/cases');
     return res.data;
@@ -9,6 +9,26 @@ export const cdrService = {
 
   createCase: async (caseData) => {
     const res = await api.post('/cases', caseData);
+    return res.data;
+  },
+
+  startNewInvestigation: async (caseData) => {
+    const res = await api.post('/cases/new-investigation', caseData);
+    return res.data;
+  },
+
+  clearInvestigationData: async (caseId, preserveMetadata = true, badge = 'CC-9042') => {
+    const res = await api.delete(`/cases/${caseId}/data`, {
+      params: { preserve_metadata: preserveMetadata, badge },
+    });
+    return res.data;
+  },
+
+  adminResetAllCases: async (confirmPhrase = 'RESET_ALL_CASES', badge = 'ADM-001') => {
+    const res = await api.post('/cases/admin/reset', {
+      confirm: confirmPhrase,
+      badge,
+    });
     return res.data;
   },
 
@@ -21,6 +41,24 @@ export const cdrService = {
 
   seedDemoData: async () => {
     const res = await api.post('/seed-demo-data');
+    return res.data;
+  },
+
+  // Party A / Party B Call Analysis (Feature 2)
+  getPartyAnalysis: async (caseId, params = {}) => {
+    const res = await api.get(`/analytics/party-analysis/${caseId}`, { params });
+    return res.data;
+  },
+
+  // Conversation Duration Analysis (Feature 3)
+  getDurationAnalysis: async (caseId, params = {}) => {
+    const res = await api.get(`/analytics/duration-analysis/${caseId}`, { params });
+    return res.data;
+  },
+
+  // Deep Investigation Module (Feature 4)
+  getDeepInvestigation: async (caseId, params = {}) => {
+    const res = await api.get(`/analytics/deep-investigation/${caseId}`, { params });
     return res.data;
   },
 

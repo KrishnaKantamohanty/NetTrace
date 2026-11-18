@@ -41,24 +41,17 @@ class LegalComplianceService:
                     "status": l.verification_status or "VERIFIED_SECURE"
                 })
         else:
-            # Query unique raw sources from CDR records
-            raw_sources = db.query(CDRRecord.raw_source).filter(
-                CDRRecord.case_id == case_id,
-                CDRRecord.raw_source.isnot(None)
-            ).distinct().all()
-
-            source_files = [s[0] for s in raw_sources if s[0]] or ["airtel_cdr_sample.csv"]
-            for idx, sf in enumerate(source_files, 1):
-                sha = hashlib.sha256(f"{case_id}:{sf}:nettrace_forensic_seed".encode("utf-8")).hexdigest()
-                evidence_entries.append({
-                    "s_no": str(idx),
-                    "file_name": sf,
-                    "event_type": "CDR INGESTION",
-                    "sha256": sha,
-                    "timestamp": datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S IST"),
-                    "user_id": user_id,
-                    "status": "VERIFIED_SECURE"
-                })
+            # No custody records found — cannot certify chain of custody
+            # Report UNVERIFIED rather than fabricating hashes
+            evidence_entries.append({
+                "s_no": "N/A",
+                "file_name": "UNKNOWN — No ingestion records found",
+                "event_type": "CHAIN OF CUSTODY NOT RECORDED",
+                "sha256": "UNVERIFIED — No SHA-256 hash available",
+                "timestamp": "N/A",
+                "user_id": user_id,
+                "status": "UNVERIFIED — No custody records found for this case"
+            })
 
         from reportlab.lib.pagesizes import letter
         from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
@@ -205,6 +198,8 @@ class LegalComplianceService:
         table_data = [[Paragraph(f"<b>{h}</b>", cell_text) for h in headers]]
 
         for entry in evidence_entries:
+            is_unverified = "UNVERIFIED" in str(entry.get("status", ""))
+            status_color = "#dc2626" if is_unverified else "#059669"
             table_data.append([
                 Paragraph(entry["s_no"], cell_text),
                 Paragraph(f"<b>{entry['file_name']}</b>", cell_text),
@@ -212,7 +207,7 @@ class LegalComplianceService:
                 Paragraph(entry["sha256"], cell_code),
                 Paragraph(entry["timestamp"], cell_text),
                 Paragraph(f"<b>{entry['user_id']}</b>", cell_text),
-                Paragraph(f"<font color='#059669'><b>{entry['status']}</b></font>", cell_text),
+                Paragraph(f"<font color='{status_color}'><b>{entry['status']}</b></font>", cell_text),
             ])
 
         col_widths = [26, 85, 65, 175, 75, 60, 54]

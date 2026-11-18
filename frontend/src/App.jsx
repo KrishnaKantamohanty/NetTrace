@@ -1,12 +1,16 @@
 import React, { useEffect } from 'react';
 import Navbar from './components/common/Navbar';
 import Sidebar from './components/common/Sidebar';
+import LoginModal from './components/common/LoginModal';
 import Dashboard from './views/Dashboard';
 import LinkAnalysis from './views/LinkAnalysis';
 import GeoSpatialView from './views/GeoSpatialView';
 import ForensicsReportView from './views/ForensicsReportView';
 import IPDRView from './views/IPDRView';
 import SpeechOCRView from './views/SpeechOCRView';
+import PartyAnalysisView from './views/PartyAnalysisView';
+import DurationAnalysisView from './views/DurationAnalysisView';
+import DeepInvestigationView from './views/DeepInvestigationView';
 import UploadModal from './views/UploadModal';
 import { useCDRStore } from './store/useCDRStore';
 import { cdrService } from './services/cdrService';
@@ -19,6 +23,9 @@ export default function App() {
     selectedCaseId,
     setSelectedCaseId,
     hasUploadedData,
+    showLoginModal,
+    setShowLoginModal,
+    isAuthenticated,
   } = useCDRStore();
 
   useEffect(() => {
@@ -36,6 +43,15 @@ export default function App() {
     initCases();
   }, []);
 
+  // Listen for 401 unauthorized events from API interceptor
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setShowLoginModal(true);
+    };
+    window.addEventListener('nettrace:unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('nettrace:unauthorized', handleUnauthorized);
+  }, [setShowLoginModal]);
+
   return (
     <div className="min-h-screen bg-[#030712] text-slate-100 flex flex-col font-sans">
       <Navbar />
@@ -46,6 +62,9 @@ export default function App() {
 
         <main className={`flex-1 overflow-y-auto max-h-[calc(100vh-4rem)] ${hasUploadedData ? 'p-6' : ''}`}>
           {activeView === 'dashboard' && <Dashboard />}
+          {activeView === 'deep_investigation' && hasUploadedData && <DeepInvestigationView />}
+          {activeView === 'party_analysis' && hasUploadedData && <PartyAnalysisView />}
+          {activeView === 'duration_analysis' && hasUploadedData && <DurationAnalysisView />}
           {activeView === 'network' && hasUploadedData && <LinkAnalysis />}
           {activeView === 'gis' && hasUploadedData && <GeoSpatialView />}
           {activeView === 'forensics' && hasUploadedData && <ForensicsReportView />}
@@ -55,6 +74,12 @@ export default function App() {
       </div>
 
       <UploadModal />
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+      />
 
       {/* Floating Toast Notification */}
       {toastMessage && (

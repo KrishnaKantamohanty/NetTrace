@@ -136,14 +136,41 @@ export default function Dashboard() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start md:self-auto text-xs">
+        <div className="flex flex-wrap items-center gap-2.5 self-start md:self-auto text-xs">
+          <button
+            onClick={() => setActiveView('deep_investigation')}
+            className="px-3.5 py-1.5 rounded-xl bg-purple-950/70 border border-purple-500/50 hover:bg-purple-900 text-purple-300 font-bold flex items-center gap-1.5 shadow-md shadow-purple-950 transition"
+            title="Launch Deep Multi-Factor Investigation Module"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+            Deep Investigation
+          </button>
+
+          <button
+            onClick={() => setActiveView('party_analysis')}
+            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-cyan-300 flex items-center gap-1.5 transition"
+            title="Open Party A / Party B Directional Communications"
+          >
+            <ArrowRight className="w-3.5 h-3.5 text-cyan-400" />
+            Party A / B
+          </button>
+
+          <button
+            onClick={() => setActiveView('duration_analysis')}
+            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-slate-300 flex items-center gap-1.5 transition"
+            title="Open Call Duration & Airtime Analysis"
+          >
+            <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+            Airtime
+          </button>
+
           <button
             onClick={() => setHasUploadedData(false)}
             className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-cyan-500/50 text-slate-300 hover:text-white flex items-center gap-1.5 transition"
             title="Upload another CDR file or switch cases"
           >
             <Upload className="w-3.5 h-3.5 text-cyan-400" />
-            Upload New Batch
+            Ingest More
           </button>
 
           <button

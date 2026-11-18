@@ -117,27 +117,49 @@ class BaseCDRParser(ABC):
 
     @classmethod
     def load_dataframe(cls, file_bytes: bytes, filename: str) -> pd.DataFrame:
-        fn = filename.lower()
-        if fn.endswith(".xlsx") or fn.endswith(".xls"):
-            return pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
-        elif fn.endswith(".csv"):
-            try:
-                return pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8")
-            except UnicodeDecodeError:
-                return pd.read_csv(io.BytesIO(file_bytes), encoding="latin-1")
-        elif fn.endswith(".txt"):
-            # Try delimiter detection
-            sample = file_bytes[:4096].decode("latin-1", errors="ignore")
-            sep = ","
-            if "\t" in sample:
-                sep = "\t"
-            elif "|" in sample:
-                sep = "|"
-            elif ";" in sample:
-                sep = ";"
-            return pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding="latin-1")
-        else:
-            raise ValueError(f"Unsupported file extension for {filename}")
+        if not file_bytes:
+            raise ValueError(f"Uploaded file '{filename}' is empty (0 bytes).")
+
+        from app.core.config import settings
+        if len(file_bytes) > settings.MAX_UPLOAD_SIZE_BYTES:
+            max_mb = settings.MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
+            raise ValueError(f"File '{filename}' exceeds maximum allowed size of {max_mb} MB.")
+
+        fn = filename.lower().strip()
+        if not any(fn.endswith(ext) for ext in settings.ALLOWED_EXTENSIONS):
+            raise ValueError(
+                f"Unsupported file format for '{filename}'. Supported extensions are: {', '.join(settings.ALLOWED_EXTENSIONS)}"
+            )
+
+        try:
+            if fn.endswith(".xlsx") or fn.endswith(".xls"):
+                df = pd.read_excel(io.BytesIO(file_bytes), engine="openpyxl")
+            elif fn.endswith(".csv"):
+                try:
+                    df = pd.read_csv(io.BytesIO(file_bytes), encoding="utf-8")
+                except UnicodeDecodeError:
+                    df = pd.read_csv(io.BytesIO(file_bytes), encoding="latin-1")
+            elif fn.endswith(".txt"):
+                sample = file_bytes[:4096].decode("latin-1", errors="ignore")
+                sep = ","
+                if "\t" in sample:
+                    sep = "\t"
+                elif "|" in sample:
+                    sep = "|"
+                elif ";" in sample:
+                    sep = ";"
+                df = pd.read_csv(io.BytesIO(file_bytes), sep=sep, encoding="latin-1")
+            else:
+                raise ValueError(f"Unsupported file extension for {filename}")
+
+            if df is None or df.empty or len(df.columns) == 0:
+                raise ValueError(f"Uploaded file '{filename}' contains no readable data rows or columns.")
+
+            return df
+        except Exception as e:
+            if isinstance(e, ValueError):
+                raise e
+            raise ValueError(f"Malformed or corrupt file structure in '{filename}': {str(e)}")
 
     @abstractmethod
     def parse(self, df: pd.DataFrame, case_id: str, filename: str) -> Tuple[List[Dict[str, Any]], List[str]]:

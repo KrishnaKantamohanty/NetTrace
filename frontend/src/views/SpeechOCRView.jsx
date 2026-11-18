@@ -214,6 +214,10 @@ export default function SpeechOCRView() {
   }, [selectedCaseId]);
 
   const handleQuickAnalyze = async () => {
+    if (!selectedCaseId) {
+      showToast('No case selected. Please select or create a case first.');
+      return;
+    }
     if (!qaForm.caller || !qaForm.receiver) {
       showToast('Please fill caller and receiver numbers.');
       return;
@@ -227,7 +231,7 @@ export default function SpeechOCRView() {
       fd.append('transcript', qaForm.transcript);
       fd.append('language', qaForm.language);
       const res = await forensicsService.analyzeSpeech(fd);
-      showToast('Speech analyzed! Keywords: ' + (res.crime_keywords?.join(', ') || 'None'));
+      showToast('Speech analyzed! Keywords: ' + (res.flagged_keywords?.join(', ') || res.crime_keywords?.join(', ') || 'None'));
       // Refresh list
       const updated = await forensicsService.getSpeechIntercepts(selectedCaseId);
       setIntercepts(updated?.intercepts || updated || []);

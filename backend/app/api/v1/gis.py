@@ -3,13 +3,14 @@ from sqlalchemy.orm import Session
 from typing import Optional, List
 from datetime import datetime
 from app.db.postgres import get_db
-from app.models.postgres_models import CDRRecord
+from app.models.postgres_models import CDRRecord, User
+from app.core.security import get_current_user
 from app.services.analytics.tower_dump import TowerDumpService
 
 router = APIRouter(prefix="/gis", tags=["Geo-Spatial GIS Tracking"])
 
 @router.get("/towers/{case_id}")
-def get_case_towers(case_id: str, db: Session = Depends(get_db)):
+def get_case_towers(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     """Extracts all unique cell tower locations with aggregated transaction metrics."""
     records = db.query(CDRRecord).filter(
         CDRRecord.case_id == case_id,
@@ -50,7 +51,8 @@ def get_suspect_route(
     phone_number: str,
     start_time: Optional[datetime] = None,
     end_time: Optional[datetime] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns chronologically ordered location trace for a suspect phone number,
@@ -107,7 +109,8 @@ class TowerDumpRequest(BaseModel):
 def run_tower_dump(
     case_id: str,
     payload: Optional[TowerDumpRequest] = None,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """Multi-CDR geo intersection finder."""
     req = payload or TowerDumpRequest()
@@ -128,7 +131,8 @@ def get_co_travelers(
     target_msisdn: Optional[str] = Query(None, description="Target phone number to track companions for"),
     window_minutes: int = Query(30, ge=5, le=180, description="Max time gap at same tower checkpoint in minutes"),
     min_shared_towers: int = Query(2, ge=1, le=20, description="Minimum shared sequential tower checkpoints"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Trajectory & Co-Traveler Analysis: Compares spatial-temporal paths of 2+ devices

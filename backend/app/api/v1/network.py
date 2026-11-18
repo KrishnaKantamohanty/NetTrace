@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.orm import Session
 from typing import List, Optional
 from app.db.postgres import get_db
+from app.models.postgres_models import User
+from app.core.security import get_current_user
 from app.models.pydantic_models import (
     NetworkGraphResponse,
     GraphNode,
@@ -22,7 +24,8 @@ def get_network_graph(
     case_id: str,
     min_weight: int = Query(1, ge=1),
     limit_nodes: int = Query(300, ge=10, le=2000),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     G = GraphBuilder.build_networkx_graph(db, case_id)
     if G.number_of_nodes() == 0:
@@ -97,17 +100,17 @@ def get_network_graph(
     }
 
 @router.get("/centrality/{case_id}")
-def get_centrality_ranks(case_id: str, db: Session = Depends(get_db)):
+def get_centrality_ranks(case_id: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     G = GraphBuilder.build_networkx_graph(db, case_id)
     return CentralityAnalysisService.rank_nodes(G)
 
 @router.post("/common-contacts")
-def find_common_contacts(req: CommonContactRequest, db: Session = Depends(get_db)):
+def find_common_contacts(req: CommonContactRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     G = GraphBuilder.build_networkx_graph(db, req.case_id)
     return LinkFinderService.find_common_contacts(G, req.numbers)
 
 @router.post("/shortest-path", response_model=ShortestPathResponse)
-def get_shortest_path(req: ShortestPathRequest, db: Session = Depends(get_db)):
+def get_shortest_path(req: ShortestPathRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     G = GraphBuilder.build_networkx_graph(db, req.case_id)
     res = LinkFinderService.find_shortest_path(G, req.source_number, req.target_number)
     if not res.get("found"):
@@ -115,6 +118,6 @@ def get_shortest_path(req: ShortestPathRequest, db: Session = Depends(get_db)):
     return res
 
 @router.post("/multi-hop")
-def get_multi_hop_subgraph(req: MultiHopRequest, db: Session = Depends(get_db)):
+def get_multi_hop_subgraph(req: MultiHopRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     G = GraphBuilder.build_networkx_graph(db, req.case_id)
     return LinkFinderService.multi_hop_analysis(G, req.seed_number, max_hops=req.max_hops)

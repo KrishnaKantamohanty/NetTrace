@@ -1,5 +1,16 @@
 import React from 'react';
-import { LayoutDashboard, Share2, MapPin, FileCheck2, Wifi, Mic, ShieldAlert, ChevronRight } from 'lucide-react';
+import {
+  LayoutDashboard,
+  Share2,
+  MapPin,
+  FileCheck2,
+  Wifi,
+  Mic,
+  ShieldAlert,
+  ArrowLeftRight,
+  Timer,
+  ChevronRight,
+} from 'lucide-react';
 import { useCDRStore } from '../../store/useCDRStore';
 
 export default function Sidebar() {
@@ -10,6 +21,9 @@ export default function Sidebar() {
       label: 'Core Intelligence',
       items: [
         { id: 'dashboard', label: 'Command Center', icon: LayoutDashboard },
+        { id: 'deep_investigation', label: 'Deep Investigation', icon: ShieldAlert, badge: 'Deep AI' },
+        { id: 'party_analysis', label: 'Party A / Party B', icon: ArrowLeftRight, badge: 'Direct' },
+        { id: 'duration_analysis', label: 'Duration Analytics', icon: Timer, badge: 'Airtime' },
         { id: 'network', label: 'Network Link Graph', icon: Share2, badge: 'Graph' },
         { id: 'gis', label: 'Geo-Spatial GIS Map', icon: MapPin, badge: 'Towers' },
       ],
